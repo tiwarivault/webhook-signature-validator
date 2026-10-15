@@ -52,6 +52,9 @@
   a{color:var(--accent)}
   .err{color:var(--danger);font-size:13px;margin-top:8px}
   .hint{color:var(--muted);font-size:12px;margin-top:6px}
+  .example-ai{background:#161033;border:1px solid #3a2a6a;border-radius:10px;padding:14px;margin-top:12px}
+  .example-ai .xtag{display:inline-block;background:#2a1d5a;color:#c084fc;font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;margin-bottom:8px}
+  .example-ai p{margin:6px 0;font-size:14px} .example-ai .note{color:var(--muted);font-size:12px;margin-top:8px}
 </style>
 </head>
 <body>
@@ -96,7 +99,8 @@
 
     <div class="row" style="margin-top:14px">
       <button class="btn-primary" onclick="run()">Compute &amp; verify</button>
-      <button class="btn-ghost" onclick="loadSample()">Load sample</button>
+      <button class="btn-ghost" onclick="loadSample()">Load sample (match)</button>
+      <button class="btn-ghost" onclick="loadMismatch()">Mismatch example</button>
       <button class="btn-ghost" onclick="clearAll()">Clear</button>
     </div>
   </div>
@@ -205,7 +209,13 @@ function causesBlock(algo){
     <li><b>Field order / delimiter</b> — for concatenated-string schemes, the fields must be joined in the exact documented order with the exact delimiter.</li>
     <li><b>Encoding of the secret</b> — some schemes hash the raw secret, others a base64/hex-decoded key.</li>
   </ul>
-  <p class="small muted" style="margin-top:8px">Fix: verify the secret + environment first, then confirm you are hashing the <i>raw</i> received body (not a re-parsed object).</p>`;
+  <p class="small muted" style="margin-top:8px">Fix: verify the secret + environment first, then confirm you are hashing the <i>raw</i> received body (not a re-parsed object).</p>
+  <div class="example-ai">
+    <span class="xtag">🤖 Example AI explanation</span>
+    <p>Most mismatches like this come from hashing a <b>re-serialized</b> body rather than the raw bytes. The sender signed the exact payload it transmitted; if your framework parsed the JSON and you re-stringified it (key order, spacing or escaping changed), the HMAC won't match even with the correct key.</p>
+    <p><b>Debug in order:</b> 1) confirm live vs test secret, 2) HMAC the <i>raw</i> request body captured before any JSON parsing, 3) check hex vs base64 output, 4) for delimited schemes, confirm exact field order + delimiter.</p>
+    <p class="note">This is a worked example of what the AI layer returns on a mismatch — case-specific reasoning + an ordered debug path, beyond the static checklist. Add your own Claude key below for live analysis of your exact scheme.</p>
+  </div>`;
 }
 
 function copySig(){
@@ -220,6 +230,13 @@ function loadSample(){
   document.getElementById('secret').value = 'whsec_demo_test_key_123';
   document.getElementById('enc').value = 'hex';
   document.getElementById('expected').value = 'dd6a3070e0b787de5b58a453a4853d0e8521aeb603a4f9e61bae005cd1c8a311';
+  run();
+}
+
+function loadMismatch(){
+  // same sample, but the received signature is wrong -> shows the mismatch diagnostic + example AI
+  loadSample();
+  document.getElementById('expected').value = 'deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef';
   run();
 }
 
