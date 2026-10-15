@@ -3,15 +3,15 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Webhook Signature Validator</title>
-<meta name="description" content="Verify a payment webhook/HMAC signature in the browser: paste the payload and secret, pick the algorithm, and instantly see MATCH or MISMATCH with the likely cause." />
+<title>Webhook Signature Validator & Troubleshooter</title>
+<meta name="description" content="Verify a payment webhook/HMAC signature, auto-detect the actual scheme behind a mismatch, and analyse recurring signature failures across integrations to surface patterns — all in the browser." />
 <meta property="og:type" content="website" />
 <meta property="og:url" content="https://tiwarivault.github.io/webhook-signature-validator/" />
-<meta property="og:title" content="Webhook Signature Validator" />
-<meta property="og:description" content="Verify a payment webhook/HMAC signature in the browser: paste payload + secret, pick the algorithm, get MATCH/MISMATCH and the likely cause. 100% client-side." />
+<meta property="og:title" content="Webhook Signature Validator & Troubleshooter" />
+<meta property="og:description" content="Verify a webhook signature, auto-detect the actual scheme behind a mismatch, and analyse recurring failures across integrations to surface patterns + fixes. 100% client-side." />
 <meta name="twitter:card" content="summary" />
-<meta name="twitter:title" content="Webhook Signature Validator" />
-<meta name="twitter:description" content="Verify a payment webhook/HMAC signature in the browser and diagnose mismatches." />
+<meta name="twitter:title" content="Webhook Signature Validator & Troubleshooter" />
+<meta name="twitter:description" content="Verify a webhook signature, auto-detect the actual scheme, and find patterns across recurring failures." />
 <style>
   :root{
     --bg:#0f1220; --card:#171a2b; --muted:#9aa3b2; --text:#e9ecf3;
@@ -55,14 +55,25 @@
   .example-ai{background:#161033;border:1px solid #3a2a6a;border-radius:10px;padding:14px;margin-top:12px}
   .example-ai .xtag{display:inline-block;background:#2a1d5a;color:#c084fc;font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;margin-bottom:8px}
   .example-ai p{margin:6px 0;font-size:14px} .example-ai .note{color:var(--muted);font-size:12px;margin-top:8px}
+  .btiles{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0}
+  .btile{flex:1;min-width:105px;background:#0e1120;border:1px solid var(--border);border-radius:10px;padding:12px}
+  .btile .n{font-size:22px;font-weight:700} .btile .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
+  .pattern{background:#161033;border:1px solid #3a2a6a;border-radius:10px;padding:11px 14px;margin-top:8px;font-size:14px}
+  .pattern b{color:#c084fc}
+  .diag{background:#10251a;border:1px solid #1f5a3a;border-radius:10px;padding:11px 14px;margin:10px 0;font-size:14px}
+  .diag b{color:#4ade80}
+  .btable{width:100%;border-collapse:collapse;font-size:13px;margin-top:12px}
+  .btable th,.btable td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--border)}
+  .btable th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.03em}
+  .s-ok{color:#4ade80;font-weight:600} .s-diag{color:#c084fc;font-weight:600} .s-bad{color:#f87171;font-weight:600}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <h1>🔐 Webhook Signature Validator</h1>
-    <p>Paste a payment webhook payload and the signing secret, pick the algorithm, and instantly check whether a received signature is valid — with the likely cause when it isn't. Automates the #1 integration bug: signature / checksum mismatch.</p>
-    <span class="badge">HMAC &amp; hash</span><span class="badge">100% in your browser</span><span class="badge">+ AI mismatch help</span>
+    <h1>🔐 Webhook Signature Validator &amp; Troubleshooter</h1>
+    <p>Verify a webhook signature, and when it fails, <b>auto-detect the actual scheme/encoding</b> behind it — not just generic causes. Then analyse recurring failures <b>across integrations</b> to surface patterns and context-aware fixes. Automates the #1 integration bug: signature / checksum mismatch.</p>
+    <span class="badge">Auto scheme detection</span><span class="badge">Pattern analysis</span><span class="badge">100% in your browser</span><span class="badge">+ AI</span>
   </header>
 
   <div class="card">
@@ -106,6 +117,36 @@
   </div>
 
   <div id="out"></div>
+
+  <!-- BATCH / MULTI-INTEGRATION ANALYSIS -->
+  <div class="card">
+    <h3 style="margin:0 0 4px">🔎 Batch analysis — recurring failures across integrations</h3>
+    <p class="small muted" style="margin:0 0 6px">Paste multiple failed verifications as JSON. For each, the tool auto-detects the <i>actual</i> scheme/encoding, then surfaces the recurring patterns across your integrations — so you fix the root cause once, not case by case.</p>
+    <div class="row">
+      <div>
+        <label for="bexpAlgo">Scheme your code verifies with</label>
+        <select id="bexpAlgo">
+          <option value="HMAC-SHA256">HMAC-SHA256</option>
+          <option value="HMAC-SHA512">HMAC-SHA512</option>
+          <option value="HMAC-SHA1">HMAC-SHA1</option>
+          <option value="SHA-256">SHA-256</option>
+          <option value="SHA-512">SHA-512</option>
+          <option value="SHA-1">SHA-1</option>
+        </select>
+      </div>
+      <div>
+        <label for="bexpEnc">Expected encoding</label>
+        <select id="bexpEnc"><option value="hex">hex</option><option value="base64">base64</option></select>
+      </div>
+    </div>
+    <label for="batch">Records — JSON array of {integration, payload, secret, received}</label>
+    <textarea id="batch" placeholder='[{"integration":"acme","payload":"{...}","secret":"whsec_...","received":"<signature>"}]'></textarea>
+    <div class="row" style="margin-top:12px">
+      <button class="btn-primary" onclick="runBatch()">Analyze batch</button>
+      <button class="btn-ghost" onclick="loadSampleBatch()">Load sample batch</button>
+    </div>
+    <div id="batchOut"></div>
+  </div>
 
   <div class="card">
     <details>
@@ -158,6 +199,21 @@ async function computeSig(algo, payload, secret, enc){
 }
 
 function normalize(s){ return (s||'').trim().replace(/^sha256=|^sha512=|^sha1=/i,'').toLowerCase(); }
+function strip(s){ return (s||'').trim().replace(/^sha256=|^sha512=|^sha1=/i,''); }
+function sigEq(a,b){ a=strip(a); b=strip(b); return a===b || a.toLowerCase()===b.toLowerCase(); } // exact (base64) or case-insensitive (hex)
+
+const ALL_ALGOS = ["HMAC-SHA256","HMAC-SHA512","HMAC-SHA1","SHA-256","SHA-512","SHA-1"];
+const ALL_ENC = ["hex","base64"];
+// Try every scheme x encoding to find which one actually produces the received signature.
+async function autoDiagnose(payload, secret, received){
+  for(const algo of ALL_ALGOS){
+    if(!PLAIN[algo] && !secret) continue; // HMAC needs a secret
+    for(const enc of ALL_ENC){
+      try{ if(sigEq(await computeSig(algo, payload, secret, enc), received)) return {algo, enc}; }catch(e){}
+    }
+  }
+  return null;
+}
 
 async function run(){
   const algo = document.getElementById('algo').value;
@@ -176,17 +232,24 @@ async function run(){
 
   let verdict = '';
   if(expected.trim()){
-    const match = normalize(expected) === normalize(sig);
-    verdict = match
-      ? `<div style="margin:6px 0 12px"><span class="pill ok">✓ MATCH — signature is valid</span></div>
-         <p class="small muted">The received signature matches the one computed from this payload + secret. The webhook is authentic and untampered.</p>`
-      : `<div style="margin:6px 0 12px"><span class="pill bad">✗ MISMATCH — signature invalid</span></div>
-         <div class="kv"><b>Received</b></div><div class="sig">${escapeHtml(normalize(expected))}</div>
+    const match = sigEq(expected, sig);
+    if(match){
+      verdict = `<div style="margin:6px 0 12px"><span class="pill ok">✓ MATCH — signature is valid</span></div>
+         <p class="small muted">The received signature matches the one computed from this payload + secret. The webhook is authentic and untampered.</p>`;
+    } else {
+      const diag = await autoDiagnose(payload, secret, expected);
+      const diagHtml = diag
+        ? `<div class="diag">🔎 <b>Auto-diagnosis:</b> the received signature actually matches <b>${diag.algo} / ${diag.enc}</b>${(diag.algo!==algo||diag.enc!==enc)?` — not the <b>${algo} / ${enc}</b> you selected. The payload and secret are correct; switch your verification to <b>${diag.algo} / ${diag.enc}</b> and it passes.`:` (the scheme you selected).`}</div>`
+        : `<div class="diag" style="background:#2a1512;border-color:#5a2a1a">🔎 <b style="color:var(--warn)">Auto-diagnosis:</b> no scheme or encoding reproduced this signature from the given payload + secret — so it's most likely a <b style="color:var(--warn)">wrong/rotated secret</b> or a <b style="color:var(--warn)">modified body</b>, not an algorithm mismatch.</div>`;
+      verdict = `<div style="margin:6px 0 12px"><span class="pill bad">✗ MISMATCH — signature invalid</span></div>
+         <div class="kv"><b>Received</b></div><div class="sig">${escapeHtml(strip(expected))}</div>
+         ${diagHtml}
          ${causesBlock(algo)}
          <details style="margin-top:10px"><summary>🤖 Explain this mismatch with AI (Claude)</summary>
            <button class="btn-ai" style="margin-top:10px" onclick="askAI('${algo}')"><span id="aibtn">Explain likely cause</span></button>
            <div id="aiout"></div>
          </details>`;
+    }
   } else {
     verdict = `<p class="small muted">No received signature entered — showing the computed value only. Paste the header signature above to verify MATCH/MISMATCH.</p>`;
   }
@@ -243,6 +306,116 @@ function loadMismatch(){
 function clearAll(){
   ['payload','secret','expected'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('out').innerHTML='';
+}
+
+/* ---- BATCH / PATTERN ANALYSIS ---- */
+let LAST_BATCH_SUMMARY = '';
+async function runBatch(){
+  const expAlgo = document.getElementById('bexpAlgo').value;
+  const expEnc = document.getElementById('bexpEnc').value;
+  const bout = document.getElementById('batchOut');
+  let records;
+  try{ records = JSON.parse(document.getElementById('batch').value); }
+  catch(e){ bout.innerHTML = `<div class="err">Couldn't parse JSON: ${escapeHtml(e.message)}</div>`; return; }
+  if(!Array.isArray(records) || !records.length){ bout.innerHTML = `<div class="err">Provide a non-empty JSON array of records.</div>`; return; }
+
+  bout.innerHTML = `<div class="ai-box" style="margin-top:14px"><span class="spinner"></span>Analysing ${records.length} record(s)...</div>`;
+
+  const rows = [];
+  for(const r of records){
+    const integration = (r.integration||'(unnamed)');
+    const payload = r.payload==null ? '' : (typeof r.payload==='string' ? r.payload : JSON.stringify(r.payload));
+    const secret = r.secret||''; const received = r.received||'';
+    let status, actual=null;
+    try{
+      const expSig = await computeSig(expAlgo, payload, secret, expEnc);
+      if(sigEq(expSig, received)){ status='verified'; }
+      else { actual = await autoDiagnose(payload, secret, received); status = actual ? 'diagnosed' : 'unresolved'; }
+    }catch(e){ status='unresolved'; }
+    rows.push({integration, status, actual});
+  }
+
+  const verified = rows.filter(r=>r.status==='verified').length;
+  const diagnosed = rows.filter(r=>r.status==='diagnosed');
+  const unresolved = rows.filter(r=>r.status==='unresolved');
+
+  // ---- pattern detection ----
+  const bySchemeMap = {};
+  for(const r of diagnosed){ const k = `${r.actual.algo} / ${r.actual.enc}`; (bySchemeMap[k]=bySchemeMap[k]||[]).push(r.integration); }
+  const patterns = [];
+  Object.entries(bySchemeMap).sort((a,b)=>b[1].length-a[1].length).forEach(([scheme, ints])=>{
+    patterns.push(`<div class="pattern"><b>${ints.length}</b> failure(s) actually use <b>${scheme}</b> — not your ${expAlgo} / ${expEnc}. Integrations: ${escapeHtml([...new Set(ints)].join(', '))}. Align your verifier with their scheme (or ask them to switch).</div>`);
+  });
+  if(unresolved.length){
+    patterns.push(`<div class="pattern" style="background:#2a1512;border-color:#5a2a1a"><b style="color:var(--warn)">${unresolved.length}</b> failure(s) matched <b style="color:var(--warn)">no known scheme</b> — likely a wrong/rotated secret or a modified body. Integrations: ${escapeHtml([...new Set(unresolved.map(r=>r.integration))].join(', '))}.</div>`);
+  }
+  if(!patterns.length) patterns.push(`<div class="pattern">No failure patterns — everything verified under ${expAlgo} / ${expEnc}. ✅</div>`);
+
+  const tableRows = rows.map(r=>{
+    const label = r.status==='verified' ? `<span class="s-ok">✓ verified</span>`
+      : r.status==='diagnosed' ? `<span class="s-diag">actually ${r.actual.algo} / ${r.actual.enc}</span>`
+      : `<span class="s-bad">✗ unresolved</span>`;
+    return `<tr><td>${escapeHtml(r.integration)}</td><td>${label}</td></tr>`;
+  }).join('');
+
+  // plain-text summary for the optional AI call (no secrets/payloads)
+  LAST_BATCH_SUMMARY = `Expected scheme: ${expAlgo}/${expEnc}. Total: ${rows.length}, verified: ${verified}, mismatched-but-diagnosed: ${diagnosed.length}, unresolved: ${unresolved.length}.\n`
+    + Object.entries(bySchemeMap).map(([s,ints])=>`${ints.length} actually ${s} (integrations: ${[...new Set(ints)].join(', ')})`).join('\n')
+    + (unresolved.length?`\n${unresolved.length} unresolved (integrations: ${[...new Set(unresolved.map(r=>r.integration))].join(', ')})`:'');
+
+  bout.innerHTML = `
+    <div class="btiles">
+      <div class="btile"><div class="n">${rows.length}</div><div class="l">Records</div></div>
+      <div class="btile"><div class="n s-ok">${verified}</div><div class="l">Verified</div></div>
+      <div class="btile"><div class="n s-diag">${diagnosed.length}</div><div class="l">Auto-diagnosed</div></div>
+      <div class="btile"><div class="n s-bad">${unresolved.length}</div><div class="l">Unresolved</div></div>
+    </div>
+    <div class="kv"><b>Patterns detected</b></div>
+    ${patterns.join('')}
+    <table class="btable"><thead><tr><th>Integration</th><th>Result</th></tr></thead><tbody>${tableRows}</tbody></table>
+    <details style="margin-top:12px"><summary>🤖 AI recommendations from these patterns (Claude)</summary>
+      <button class="btn-ai" style="margin-top:10px" onclick="askBatchAI()"><span id="baibtn">Get recommendations</span></button>
+      <div id="baiout"></div>
+    </details>`;
+}
+
+function loadSampleBatch(){
+  document.getElementById('bexpAlgo').value = 'HMAC-SHA256';
+  document.getElementById('bexpEnc').value = 'hex';
+  const sample = [
+    {integration:"acme-prod",    payload:'{"event":"payment.captured","id":"acme_1","amount":500}',    secret:"whsec_acme_test",     received:"V3DhTbTs67yRJ2p5y6YalyrfKSEPP33Vp7K9lqDg3dU="},
+    {integration:"acme-staging", payload:'{"event":"payment.failed","id":"acme_2","amount":900}',       secret:"whsec_acme_test",     received:"PvWDSBClidYdXPt3qh0X5qjvlp/i8NO6lE8OCjDb15E="},
+    {integration:"globex",       payload:'{"event":"payment.captured","id":"globex_1","amount":1200}',   secret:"whsec_globex_test",   received:"13b34096057d0e5b541df4d5d637fc0e30a22a5b1437562042c615f8efa5287cb9d0344ccd691cb31115226c43f269e34c521794c3a14b6b25fd32665200ded7"},
+    {integration:"umbrella",     payload:'{"event":"payment.captured","id":"umbrella_1","amount":750}',  secret:"whsec_umbrella_test", received:"2ccfccd2d8a9a5297b647871a2764930207dfb2bf3314b5abd355afcadba8704"},
+    {integration:"initech",      payload:'{"event":"payment.captured","id":"initech_1","amount":300}',   secret:"whsec_initech_test",  received:"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"}
+  ];
+  document.getElementById('batch').value = JSON.stringify(sample, null, 2);
+  runBatch();
+}
+
+async function askBatchAI(){
+  const key = document.getElementById('key').value.trim();
+  const model = document.getElementById('model').value.trim() || 'claude-haiku-5-5';
+  const out = document.getElementById('baiout');
+  if(!key){ out.innerHTML = `<div class="err">Add your Anthropic API key in "AI mode settings" below.</div>`; return; }
+  if(!LAST_BATCH_SUMMARY){ out.innerHTML = `<div class="err">Run a batch analysis first.</div>`; return; }
+  out.innerHTML = `<div class="ai-box"><span class="spinner"></span>Asking Claude...</div>`;
+  const prompt =
+`You are a senior payments integration engineer reviewing recurring webhook signature failures across integrations. Here is the pattern summary (no secrets or payloads shared):
+
+${LAST_BATCH_SUMMARY}
+
+Give context-aware recommendations: what each pattern implies, the single highest-leverage fix, and how to prevent this class of failure across integrations going forward. Under 170 words, practical, bullet points.`;
+  try{
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{'content-type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body: JSON.stringify({ model, max_tokens:500, messages:[{role:'user', content:prompt}] })
+    });
+    const data = await res.json();
+    if(!res.ok){ out.innerHTML = `<div class="err">API error (${res.status}): ${escapeHtml((data.error&&data.error.message)||JSON.stringify(data))}</div>`; }
+    else { const t=(data.content&&data.content[0]&&data.content[0].text)||'No response.'; out.innerHTML = `<div class="ai-box">${escapeHtml(t)}</div>`; }
+  }catch(err){ out.innerHTML = `<div class="err">Request failed: ${escapeHtml(err.message)}.</div>`; }
 }
 
 /* ---- AI ---- */
